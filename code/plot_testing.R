@@ -20,6 +20,7 @@ library(extrafont)
 library(gtable)
 library(grid)
 
+## SMOKE DATA
 library(PWFSLSmoke)
 library(MazamaSpatialUtils)
 #----------------------------------------------------------------------------
@@ -152,7 +153,7 @@ n_mons <- length(unique(airnow$meta$monitorID))
 monitor_esriMap(airnow, 
                 centerLon = fire_info$longitude, 
                 centerLat = fire_info$latitude,
-                zoom = 10,
+                zoom = 9,
                 width = 600, 
                 height = 600, 
                 cex = 2)

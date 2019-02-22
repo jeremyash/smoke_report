@@ -1,30 +1,116 @@
 ---
-title: "Test"
-output:
-  pdf_document: default
-  html_document: default
+title: "Smoke Analysis Report for XXX Rx Fire"
+author: "Jeremy Ash"
+date:  "`r Sys.Date()`"
+output: pdf_document
+geometry: margin=0.25in 
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+## SPATIAL
+library(sp)
+library(rgeos)
+library(raster)
+library(rgdal)
+library(maptools)
+
+## DATA MANAGEMENT
+library(tidyverse)
+library(skimr)
+library(patchwork)
+library(readxl)
+# library(zoo)
+
+## PLOTTING
+library(scales)
+library(units)
+library(viridis)
+library(extrafont)
+library(gtable)
+library(grid)
+
+## SMOKE DATA
+library(PWFSLSmoke)
+library(MazamaSpatialUtils)
 ```
 
-## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+```{r fire_info, include = FALSE}
+#############################################################################
+## pull monitors near fire
+#############################################################################
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+# number of previous days
+n_hrs <- 96
 
-```{r cars}
-summary(cars)
+#rx fire
+fire_info <- tibble(longitude = -82.22618525756064, 
+                    latitude = 39.53743368404867,
+                    name = "Wayne NF Rx Fire")
+
+# pull hourly data within 100 km of rx fire  and the last n_days hours
+airnow <- airnow_loadLatest() %>% 
+  monitor_subsetByDistance(fire_info$longitude, fire_info$latitude, radius = 100) 
+
+airnow$data <- airnow$data %>% 
+  slice(-(1:(n()-n_hrs)))
+
+# 
+# # check what the dates are...data are for the previous 10 days on an hourly basis
+# airnow_dat <- airnow[["data"]] 
+# range(airnow_dat$datetime)
+
+# get number of monitors 
+n_mons <- length(unique(airnow$meta$monitorID))
+
+
+# calculate mean and prep data for plotting
+mon_dailyMean_list <- monitor_dailyStatistic(airnow, FUN = get("mean"), 
+                                        dayStart = "midnight", 
+                                        na.rm = TRUE, 
+                                        minHours = 18)
+
+mon_names <- mon_dailyMean_list[[1]]$siteName
+
+mon_mean_df <- mon_dailyMean_list[[2]] 
+colnames(mon_mean_df)[2:(2+length(mon_names)-1)] <- mon_names
+mon_mean_df <- mon_mean_df %>% 
+  gather(mon_name, pm_val, -1) %>% 
+  mutate(aqi_col = aqiColors(pm_val),
+         aqi_cat = cut(pm_val, 
+                       breaks = AQI$breaks_24,
+                       labels = AQI$names))
+
+
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+```{r fire_map_aqi, include = TRUE, echo = FALSE, message = FALSE, results = 'hide', fig.width=4, fig.height=2.5}
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+
+# Monitor Map showing Max HOurly AQI
+monitor_esriMap(airnow, 
+                centerLon = fire_info$longitude, 
+                centerLat = fire_info$latitude,
+                zoom = 8,
+                width = 600, 
+                height = 600, 
+                cex = 2)
+addIcon('redFlame', fire_info$longitude, fire_info$latitude, expansion = .0008)
+text(fire_info$longitude, fire_info$latitude, fire_info$name, pos = 3, cex = .8, col = "firebrick4")
+# addAQILegend(title = "Max AQI Level", pt.cex = 1.5)
+
+# recent AQI values at nearby monitors
+ggplot(aes(x = datetime, y = pm_val, group = mon_name), data = mon_mean_df) +
+  geom_bar(aes(fill = aqi_cat), stat = "identity", show.legend = FALSE) +
+  scale_fill_manual(values = AQI$colors) +
+  facet_wrap(~mon_name, ncol = 1) +
+  labs(y = expression(PM[2.5]), x = NULL) +
+  theme_minimal()
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r aqi_levels, echo=FALSE, out.width = '75%', out.height = '75%', fig.align = 'center'}
+knitr::include_graphics("epa_aqi.png")
+```
