@@ -1,9 +1,12 @@
 ---
 title: "Smoke Analysis Report for XXX Rx Fire"
 author: "Jeremy Ash"
-date:  "`r Sys.Date()`"
-output: pdf_document
-geometry: margin=0.25in 
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+geometry: margin=0.25in
 ---
 
 ```{r setup, include=FALSE}
@@ -14,6 +17,7 @@ library(rgeos)
 library(raster)
 library(rgdal)
 library(maptools)
+library(ggmap)
 
 ## DATA MANAGEMENT
 library(tidyverse)
@@ -29,6 +33,11 @@ library(viridis)
 library(extrafont)
 library(gtable)
 library(grid)
+library(ggimage)
+library(gridExtra)
+library(knitr)
+library(kableExtra)
+library(egg)
 
 ## SMOKE DATA
 library(PWFSLSmoke)
@@ -45,13 +54,13 @@ library(MazamaSpatialUtils)
 n_hrs <- 96
 
 #rx fire
-fire_info <- tibble(longitude = -82.22618525756064, 
-                    latitude = 39.53743368404867,
+fire_info <- tibble(lon = -82.22618525756064, 
+                    lat = 39.53743368404867,
                     name = "Wayne NF Rx Fire")
 
 # pull hourly data within 100 km of rx fire  and the last n_days hours
 airnow <- airnow_loadLatest() %>% 
-  monitor_subsetByDistance(fire_info$longitude, fire_info$latitude, radius = 100) 
+  monitor_subsetByDistance(fire_info$lon, fire_info$lat, radius = 100) 
 
 airnow$data <- airnow$data %>% 
   slice(-(1:(n()-n_hrs)))
@@ -63,6 +72,20 @@ airnow$data <- airnow$data %>%
 
 # get number of monitors 
 n_mons <- length(unique(airnow$meta$monitorID))
+
+
+# get max and prep for plotting
+max_dat <- airnow$data %>% 
+  gather(monitorID, pm_val, -1) %>% 
+  group_by(monitorID) %>% 
+  summarise(max_pm = max(pm_val, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  left_join(., airnow$meta, by = "monitorID") %>%
+  select(monitorID, max_pm, longitude, latitude) %>% 
+  mutate(aqi_col = aqiColors(max_pm),
+         aqi_cat = cut(max_pm, 
+                       breaks = AQI$breaks_24,
+                       labels = AQI$names))
 
 
 # calculate mean and prep data for plotting
@@ -82,35 +105,150 @@ mon_mean_df <- mon_mean_df %>%
                        breaks = AQI$breaks_24,
                        labels = AQI$names))
 
+# read aqi table
+aqi_tab <- read_csv("../data/aqi_table.csv")
 
 ```
 
+## Outlook for `r fire_info$name` 
 
-```{r fire_map_aqi, include = TRUE, echo = FALSE, message = FALSE, results = 'hide', fig.width=4, fig.height=2.5}
+This report documents the recent air quality, weather forecast and smoke analysis for the `r fire_info$name` fire. Shown immediately below is the recent air quality index (AQI) for nearby monitors. The map shows the location of the fire and the highest hourly recorded PM$_{2.5}$ concentration over the past 3 days. The bar plots show the average daily PM$_{2.5}$ concentrations for each nearby monitor over the past 3 days. Both plots are color-coded according to the AQI colors shown in the table below.
+
+```{r fire_map_aqi, include = TRUE, echo = FALSE, message = FALSE,  fig.width=8, fig.height=3}
 
 
-# Monitor Map showing Max HOurly AQI
-monitor_esriMap(airnow, 
-                centerLon = fire_info$longitude, 
-                centerLat = fire_info$latitude,
-                zoom = 8,
-                width = 600, 
-                height = 600, 
-                cex = 2)
-addIcon('redFlame', fire_info$longitude, fire_info$latitude, expansion = .0008)
-text(fire_info$longitude, fire_info$latitude, fire_info$name, pos = 3, cex = .8, col = "firebrick4")
-# addAQILegend(title = "Max AQI Level", pt.cex = 1.5)
+# # Monitor Map showing Max HOurly AQI
+# monitor_esriMap(airnow, 
+#                 centerLon = fire_info$lon, 
+#                 centerLat = fire_info$lat,
+#                 zoom = 8,
+#                 width = 600, 
+#                 height = 600, 
+#                 cex = 2)
+# addIcon('redFlame', fire_info$lon, fire_info$lat, expansion = .0008)
+# text(fire_info$lon, fire_info$lat, fire_info$name, pos = 3, cex = .8, col = "firebrick4")
+# # addAQILegend(title = "Max AQI Level", pt.cex = 1.5)
+
+# set up google API for ggmap
+api <- readLines("C:/Users/jash/Documents/projects/smoke_report/google.api")
+register_google(key = api)
+
+fire_icon <- tibble(x = fire_info$lon,
+                        y = fire_info$lat,
+                        image = "../icons/redFlame.png")
+
+fire_map_info <- get_map(location = c(fire_info$lon, fire_info$lat),
+                    maptype = "terrain",
+                    zoom = 9)
+
+fire_map <- ggmap(fire_map_info, extent = "device") +
+  geom_image(aes(x = x, y = y, image = image), data = fire_icon) +
+  geom_point(aes(x = longitude, y = latitude, color = aqi_cat), size = 3, show.legend = FALSE, data = max_dat) +
+  scale_color_manual(values = max_dat$aqi_col)
+
+
 
 # recent AQI values at nearby monitors
-ggplot(aes(x = datetime, y = pm_val, group = mon_name), data = mon_mean_df) +
+daily_aqi_plot <- ggplot(aes(x = datetime, y = pm_val, group = mon_name), data = mon_mean_df) +
   geom_bar(aes(fill = aqi_cat), stat = "identity", show.legend = FALSE) +
   scale_fill_manual(values = AQI$colors) +
   facet_wrap(~mon_name, ncol = 1) +
   labs(y = expression(PM[2.5]), x = NULL) +
   theme_minimal()
 
+
+# aqi_table 
+aqi_kable <- aqi_tab %>%
+  mutate('Air Quality Index (AQI)' = cell_spec(c("Good", "Moderate", "USG", "Unhealthy", "Very Unhealthy", "Hazardous"), color = "black", bold = T, background = AQI$colors)) %>% 
+  kable(escape = FALSE) %>%
+  kable_styling(full_width = F, position = "left")
+
+
+# ggarrange(fire_map, daily_aqi_plot, 
+#              widths = c(8,2))
+
+# knitr::include_graphics("../figures/aqi_table.PNG")
+
 ```
 
-```{r aqi_levels, echo=FALSE, out.width = '75%', out.height = '75%', fig.align = 'center'}
-knitr::include_graphics("epa_aqi.png")
+
+
+```{r firepoker_link, echo = FALSE }
+
+
+
+#############################################################################
+## get firepoker link
+#############################################################################
+
+# get fire location
+fire_loc <- fire_info %>% 
+  select(-name)
+
+# specify coordinates
+coordinates(fire_loc) <- c("lon", "lat")
+proj4string(fire_loc) <- CRS("+init=epsg:4326")
+
+# transform to bbox CRS
+fire_loc_3857 <- spTransform(fire_loc, CRS("+init=epsg:3857"))@coords
+
+# bbox data: xmin, ymin, xmax, ymax
+bbox_ctds <- c(fire_loc_3857[1] + -1016307,
+               fire_loc_3857[2] - 489197,
+               fire_loc_3857[1] - -1016307,
+               fire_loc_3857[2] + 489197)
+
+disp_brkpts <- c(0,40,60,100,150)
+
+
+# create firepoker link
+fp_url <- paste("https://www.weather.gov/dlh/firepoker?lat=",
+                round(fire_info$lat, 3),
+                "&lon=",
+                round(fire_info$lon, 3),
+                "&clat=",
+                round(fire_info$lat, 3),
+                "&clon=",
+                round(fire_info$lon, 3),
+                "&zoom=6&bbox=[",
+                round(bbox_ctds[1], 3),
+                ",",
+                round(bbox_ctds[2], 3),
+                ",",
+                round(bbox_ctds[3], 3),
+                ",",
+                round(bbox_ctds[4], 3),
+                "]&layers=FFFTTTTFFFT&fwf=F&dispersion=",
+                paste(disp_brkpts, collapse = ","),
+                sep = "")
+
+
+
+
+
+
+
+
+
+
 ```
+
+Weather data can be found at ...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
