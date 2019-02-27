@@ -110,24 +110,11 @@ aqi_tab <- read_csv("../data/aqi_table.csv")
 
 ```
 
-## Outlook for `r fire_info$name` 
+## Recent Air Quality in Area of `r fire_info$name` 
 
 This report documents the recent air quality, weather forecast and smoke analysis for the `r fire_info$name` fire. Shown immediately below is the recent air quality index (AQI) for nearby monitors. The map shows the location of the fire and the highest hourly recorded PM$_{2.5}$ concentration over the past 3 days. The bar plots show the average daily PM$_{2.5}$ concentrations for each nearby monitor over the past 3 days. Both plots are color-coded according to the AQI colors shown in the table below.
 
-```{r fire_map_aqi, include = TRUE, echo = FALSE, message = FALSE,  fig.width=8, fig.height=3}
-
-
-# # Monitor Map showing Max HOurly AQI
-# monitor_esriMap(airnow, 
-#                 centerLon = fire_info$lon, 
-#                 centerLat = fire_info$lat,
-#                 zoom = 8,
-#                 width = 600, 
-#                 height = 600, 
-#                 cex = 2)
-# addIcon('redFlame', fire_info$lon, fire_info$lat, expansion = .0008)
-# text(fire_info$lon, fire_info$lat, fire_info$name, pos = 3, cex = .8, col = "firebrick4")
-# # addAQILegend(title = "Max AQI Level", pt.cex = 1.5)
+```{r fire_map_aqi, include = TRUE, echo = FALSE, message = FALSE}
 
 # set up google API for ggmap
 api <- readLines("C:/Users/jash/Documents/projects/smoke_report/google.api")
@@ -160,18 +147,48 @@ daily_aqi_plot <- ggplot(aes(x = datetime, y = pm_val, group = mon_name), data =
 # aqi_table 
 aqi_kable <- aqi_tab %>%
   mutate('Air Quality Index (AQI)' = cell_spec(c("Good", "Moderate", "USG", "Unhealthy", "Very Unhealthy", "Hazardous"), color = "black", bold = T, background = AQI$colors)) %>% 
-  kable(escape = FALSE) %>%
+  kable(escape = FALSE, linesep = "") %>%
   kable_styling(full_width = F, position = "left")
 
 
-# ggarrange(fire_map, daily_aqi_plot, 
-#              widths = c(8,2))
+# 
+grid.arrange(fire_map, daily_aqi_plot, nrow = 1)
 
-# knitr::include_graphics("../figures/aqi_table.PNG")
+aqi_kable
 
+
+
+
+```
+## Modeled Smoke Trajectories for `r fire_info$name` 
+Below are the BlueSky modeling outputs for the fire. Each row of figures shows one day from the modeling runs and displays the average smoke conditions (top panel) and maximum smoke conditions (bottom panel). The average smoke conditions are helpful for comparing with the NAAQS to identify areas of concern for public health. The maximum smoke conditions show the highest concentration of PM$_{2.5}$ at each point in the modeling domain for that day. The maximum trajectory is useful for idnetifying potetnial impacts to visibility. 
+
+__Smoke conditions on day one of the modeling run: 24 average (top) and maximum (bottom)__
+```{r bluesky_maps_day_one, echo = FALSE, out.width="49%", out.height="20%",fig.show='hold',fig.align='center'}
+## Modeled Smoke Trajectories `r fire_info$name` 
+
+include_graphics(c("bluesky/day_one_ave.jpg", "bluesky/day_one_max.jpg"))
+# day1_avg <- include_graphics("blueksy/day_one_ave.jpg")
+# day2_avg <-
+# 
+# day1_max <-
+# day2_max <- 
+```
+
+__Smoke conditions on day two of the modeling run: 24 average (top) and maximum (bottom)__
+```{r bluesky_maps_day_two, echo = FALSE, caption = "caption", out.width="49%", out.height="20%",fig.show='hold',fig.align='center'}
+## Modeled Smoke Trajectories `r fire_info$name` 
+
+include_graphics(c("bluesky/day_two_ave.jpg", "bluesky/day_two_max.jpg"))
+# day1_avg <- include_graphics("blueksy/day_one_ave.jpg")
+# day2_avg <-
+# 
+# day1_max <-
+# day2_max <- 
 ```
 
 
+## Meterological Conditions  
 
 ```{r firepoker_link, echo = FALSE }
 
@@ -221,22 +238,13 @@ fp_url <- paste("https://www.weather.gov/dlh/firepoker?lat=",
                 "]&layers=FFFTTTTFFFT&fwf=F&dispersion=",
                 paste(disp_brkpts, collapse = ","),
                 sep = "")
-
-
-
-
-
-
-
-
-
-
 ```
 
-Weather data can be found at ...
+The weather data shown below can be found [here](`r fp_url`). 
 
-
-
+```{r met_data, echo=FALSE, out.width="100%", out.height="100%",fig.show='hold',fig.align='center'}
+include_graphics("met_data.PNG")
+```
 
 
 
