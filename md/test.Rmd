@@ -1,5 +1,5 @@
 ---
-title: "Smoke Analysis Report for XXX Rx Fire"
+title: "Smoke Outlook for XXX Rx Fire"
 author: "Jeremy Ash"
 date: "`r Sys.Date()`"
 output:
@@ -74,20 +74,6 @@ airnow$data <- airnow$data %>%
 n_mons <- length(unique(airnow$meta$monitorID))
 
 
-# get max and prep for plotting
-max_dat <- airnow$data %>% 
-  gather(monitorID, pm_val, -1) %>% 
-  group_by(monitorID) %>% 
-  summarise(max_pm = max(pm_val, na.rm = TRUE)) %>% 
-  ungroup() %>% 
-  left_join(., airnow$meta, by = "monitorID") %>%
-  select(monitorID, max_pm, longitude, latitude) %>% 
-  mutate(aqi_col = aqiColors(max_pm),
-         aqi_cat = cut(max_pm, 
-                       breaks = AQI$breaks_24,
-                       labels = AQI$names))
-
-
 # calculate mean and prep data for plotting
 mon_dailyMean_list <- monitor_dailyStatistic(airnow, FUN = get("mean"), 
                                         dayStart = "midnight", 
@@ -105,14 +91,25 @@ mon_mean_df <- mon_mean_df %>%
                        breaks = AQI$breaks_24,
                        labels = AQI$names))
 
+rec_daily_df <- mon_mean_df %>% 
+  group_by(mon_name) %>% 
+  arrange(desc(datetime)) %>% 
+  slice(1) %>% 
+  ungroup() %>% 
+  rename(siteName = mon_name) %>% 
+  left_join(., airnow$meta, by = "siteName") 
+
+
 # read aqi table
 aqi_tab <- read_csv("../data/aqi_table.csv")
 
 ```
 
-## Recent Air Quality in Area of `r fire_info$name` 
+This report documents the recent air quality, weather forecast and smoke analysis for the `r fire_info$name` fire. 
 
-This report documents the recent air quality, weather forecast and smoke analysis for the `r fire_info$name` fire. Shown immediately below is the recent air quality index (AQI) for nearby monitors. The map shows the location of the fire and the highest hourly recorded PM$_{2.5}$ concentration over the past 3 days. The bar plots show the average daily PM$_{2.5}$ concentrations for each nearby monitor over the past 3 days. Both plots are color-coded according to the AQI colors shown in the table below.
+## Recent Air Quality in Area 
+
+Shown below is the recently measured air quality index (AQI, [](https://airnow.gov/)) in the area. The map shows the location of the fire and the most recent daily AQI. The figure shows the daily AQI for the previous 3 days.
 
 ```{r fire_map_aqi, include = TRUE, echo = FALSE, message = FALSE}
 
@@ -130,8 +127,8 @@ fire_map_info <- get_map(location = c(fire_info$lon, fire_info$lat),
 
 fire_map <- ggmap(fire_map_info, extent = "device") +
   geom_image(aes(x = x, y = y, image = image), data = fire_icon) +
-  geom_point(aes(x = longitude, y = latitude, color = aqi_cat), size = 3, show.legend = FALSE, data = max_dat) +
-  scale_color_manual(values = max_dat$aqi_col)
+  geom_point(aes(x = longitude, y = latitude, color = aqi_cat), size = 3, show.legend = FALSE, data = rec_daily_df) +
+  scale_color_manual(values = rec_daily_df$aqi_col)
 
 
 
@@ -140,7 +137,7 @@ daily_aqi_plot <- ggplot(aes(x = datetime, y = pm_val, group = mon_name), data =
   geom_bar(aes(fill = aqi_cat), stat = "identity", show.legend = FALSE) +
   scale_fill_manual(values = AQI$colors) +
   facet_wrap(~mon_name, ncol = 1) +
-  labs(y = expression(PM[2.5]), x = NULL) +
+  labs(y = "AQI", x = NULL) +
   theme_minimal()
 
 
@@ -160,11 +157,11 @@ aqi_kable
 
 
 ```
-## Modeled Smoke Trajectories for `r fire_info$name` 
-Below are the BlueSky modeling outputs for the fire. Each row of figures shows one day from the modeling runs and displays the average smoke conditions (top panel) and maximum smoke conditions (bottom panel). The average smoke conditions are helpful for comparing with the NAAQS to identify areas of concern for public health. The maximum smoke conditions show the highest concentration of PM$_{2.5}$ at each point in the modeling domain for that day. The maximum trajectory is useful for idnetifying potetnial impacts to visibility. 
+## Modeled Smoke Trajectories
+Below are the BlueSky modeling outputs for day one and two after the burn is lit. Each group of figures shows the predicted average smoke conditions (top panel) and maximum smoke conditions (bottom panel) for an individual day. The average smoke conditions are helpful for concerns related to public health. The maximum smoke conditions show the highest concentration at each point on the map for that day. This map is useful for identifying potential impacts to visibility on roadways or other areas.
 
 __Smoke conditions on day one of the modeling run: 24 average (top) and maximum (bottom)__
-```{r bluesky_maps_day_one, echo = FALSE, out.width="49%", out.height="20%",fig.show='hold',fig.align='center'}
+```{r bluesky_maps_day_one, echo = FALSE, out.width="70%", out.height="50%",fig.show='hold',fig.align='center'}
 ## Modeled Smoke Trajectories `r fire_info$name` 
 
 include_graphics(c("bluesky/day_one_ave.jpg", "bluesky/day_one_max.jpg"))
@@ -176,7 +173,7 @@ include_graphics(c("bluesky/day_one_ave.jpg", "bluesky/day_one_max.jpg"))
 ```
 
 __Smoke conditions on day two of the modeling run: 24 average (top) and maximum (bottom)__
-```{r bluesky_maps_day_two, echo = FALSE, caption = "caption", out.width="49%", out.height="20%",fig.show='hold',fig.align='center'}
+```{r bluesky_maps_day_two, echo = FALSE, caption = "caption", out.width="70%", out.height="50%",fig.show='hold',fig.align='center'}
 ## Modeled Smoke Trajectories `r fire_info$name` 
 
 include_graphics(c("bluesky/day_two_ave.jpg", "bluesky/day_two_max.jpg"))
@@ -215,6 +212,9 @@ bbox_ctds <- c(fire_loc_3857[1] + -1016307,
                fire_loc_3857[1] - -1016307,
                fire_loc_3857[2] + 489197)
 
+
+
+
 disp_brkpts <- c(0,40,60,100,150)
 
 
@@ -240,12 +240,11 @@ fp_url <- paste("https://www.weather.gov/dlh/firepoker?lat=",
                 sep = "")
 ```
 
-The weather data shown below can be found [here](`r fp_url`). 
+The predicted weather data, including fire behavior and smoke parameters, for the area are shown below. They can also be found [here](`r fp_url`). 
 
 ```{r met_data, echo=FALSE, out.width="100%", out.height="100%",fig.show='hold',fig.align='center'}
 include_graphics("met_data.PNG")
 ```
-
 
 
 
