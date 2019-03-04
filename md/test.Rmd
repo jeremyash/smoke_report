@@ -50,13 +50,20 @@ library(MazamaSpatialUtils)
 ## pull monitors near fire
 #############################################################################
 
-# number of previous days
-n_hrs <- 96
+##***************************************
+## ENTER FIRE INFORMATION HERE
+##***************************************
 
-#rx fire
 fire_info <- tibble(lon = -82.22618525756064, 
                     lat = 39.53743368404867,
                     name = "Wayne NF Rx Fire")
+
+#------
+
+## Pull airnow data and reshapre for plotting
+
+# number of previous hours to pull monitoring data
+n_hrs <- 96
 
 # pull hourly data within 100 km of rx fire  and the last n_days hours
 airnow <- airnow_loadLatest() %>% 
@@ -65,10 +72,6 @@ airnow <- airnow_loadLatest() %>%
 airnow$data <- airnow$data %>% 
   slice(-(1:(n()-n_hrs)))
 
-# 
-# # check what the dates are...data are for the previous 10 days on an hourly basis
-# airnow_dat <- airnow[["data"]] 
-# range(airnow_dat$datetime)
 
 # get number of monitors 
 n_mons <- length(unique(airnow$meta$monitorID))
@@ -82,6 +85,7 @@ mon_dailyMean_list <- monitor_dailyStatistic(airnow, FUN = get("mean"),
 
 mon_names <- mon_dailyMean_list[[1]]$siteName
 
+# calculate mean daily AQI for preceeding days
 mon_mean_df <- mon_dailyMean_list[[2]] 
 colnames(mon_mean_df)[2:(2+length(mon_names)-1)] <- mon_names
 mon_mean_df <- mon_mean_df %>% 
@@ -91,6 +95,7 @@ mon_mean_df <- mon_mean_df %>%
                        breaks = AQI$breaks_24,
                        labels = AQI$names))
 
+# calculate most recent 24hr average AQI
 rec_daily_df <- mon_mean_df %>% 
   group_by(mon_name) %>% 
   arrange(desc(datetime)) %>% 
@@ -100,7 +105,7 @@ rec_daily_df <- mon_mean_df %>%
   left_join(., airnow$meta, by = "siteName") 
 
 
-# read aqi table
+# read aqi table to include in final output
 aqi_tab <- read_csv("../data/aqi_table.csv")
 
 ```
@@ -117,14 +122,21 @@ Shown below is the recently measured air quality index (AQI, [](https://airnow.g
 api <- readLines("C:/Users/jash/Documents/projects/smoke_report/google.api")
 register_google(key = api)
 
+# read in fire icon for mapping
 fire_icon <- tibble(x = fire_info$lon,
                         y = fire_info$lat,
                         image = "../icons/redFlame.png")
 
+##***************************************
+## PULLING FIRE MAP INFO: MAY NEED TO ADJUST ZOOM
+##***************************************
+
+# pull fire map from google
 fire_map_info <- get_map(location = c(fire_info$lon, fire_info$lat),
                     maptype = "terrain",
                     zoom = 9)
 
+# plot fire map
 fire_map <- ggmap(fire_map_info, extent = "device") +
   geom_image(aes(x = x, y = y, image = image), data = fire_icon) +
   geom_point(aes(x = longitude, y = latitude, color = aqi_cat), size = 3, show.legend = FALSE, data = rec_daily_df) +
@@ -148,13 +160,11 @@ aqi_kable <- aqi_tab %>%
   kable_styling(full_width = F, position = "left")
 
 
-# 
+# show the fire map and aqi side-by-side
 grid.arrange(fire_map, daily_aqi_plot, nrow = 1)
 
+# show aqi color scheme and explanations
 aqi_kable
-
-
-
 
 ```
 ## Modeled Smoke Trajectories
@@ -162,26 +172,18 @@ Below are the BlueSky modeling outputs for day one and two after the burn is lit
 
 __Smoke conditions on day one of the modeling run: 24 average (top) and maximum (bottom)__
 ```{r bluesky_maps_day_one, echo = FALSE, out.width="70%", out.height="50%",fig.show='hold',fig.align='center'}
-## Modeled Smoke Trajectories `r fire_info$name` 
 
+# show bluesky output for day one
 include_graphics(c("bluesky/day_one_ave.jpg", "bluesky/day_one_max.jpg"))
-# day1_avg <- include_graphics("blueksy/day_one_ave.jpg")
-# day2_avg <-
-# 
-# day1_max <-
-# day2_max <- 
+
 ```
 
 __Smoke conditions on day two of the modeling run: 24 average (top) and maximum (bottom)__
 ```{r bluesky_maps_day_two, echo = FALSE, caption = "caption", out.width="70%", out.height="50%",fig.show='hold',fig.align='center'}
-## Modeled Smoke Trajectories `r fire_info$name` 
 
+# show bluesky output for day two
 include_graphics(c("bluesky/day_two_ave.jpg", "bluesky/day_two_max.jpg"))
-# day1_avg <- include_graphics("blueksy/day_one_ave.jpg")
-# day2_avg <-
-# 
-# day1_max <-
-# day2_max <- 
+
 ```
 
 
@@ -189,11 +191,7 @@ include_graphics(c("bluesky/day_two_ave.jpg", "bluesky/day_two_max.jpg"))
 
 ```{r firepoker_link, echo = FALSE }
 
-
-
-#############################################################################
-## get firepoker link
-#############################################################################
+## Generate firepoker link
 
 # get fire location
 fire_loc <- fire_info %>% 
@@ -243,7 +241,9 @@ fp_url <- paste("https://www.weather.gov/dlh/firepoker?lat=",
 The predicted weather data, including fire behavior and smoke parameters, for the area are shown below. They can also be found [here](`r fp_url`). 
 
 ```{r met_data, echo=FALSE, out.width="100%", out.height="100%",fig.show='hold',fig.align='center'}
+# include screeshot of firepoker website
 include_graphics("met_data.PNG")
+
 ```
 
 
