@@ -127,7 +127,7 @@ air_spec_contact <- tibble(name = c("Jeremy Ash", "Ralph Perron", "Trent Wickman
 
 ```
 
-This report documents the recent air quality, weather forecast and smoke analysis for the `r fire_info$name` fire, planned for `r params$FIRE_DATE`. For more information, please contact `r params$AUTHOR`, Air Resource Specialist, `r air_spec_contact$number`, `r air_spec_contact$email`. 
+This report documents the recent air quality, weather forecast and smoke analysis for the `r fire_info$name` prescribed fire, planned for `r params$FIRE_DATE`. For more information, please contact `r params$AUTHOR`, Air Resource Specialist, `r air_spec_contact$number`, `r air_spec_contact$email`. 
 
 ## Recent Air Quality in Area 
 
