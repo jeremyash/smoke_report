@@ -12,6 +12,8 @@ params:
   AUTHOR: ""
   LON: ""
   LAT: ""
+  MODEL_RUN: ""
+  FIRE_DATE: ""
 ---
 
 ```{r setup, include=FALSE}
@@ -125,11 +127,11 @@ air_spec_contact <- tibble(name = c("Jeremy Ash", "Ralph Perron", "Trent Wickman
 
 ```
 
-This report documents the recent air quality, weather forecast and smoke analysis for the `r fire_info$name` fire. For more information, please contact `r params$AUTHOR`, Air Resource Specialist, `r air_spec_contact$number`, `r air_spec_contact$email`. 
+This report documents the recent air quality, weather forecast and smoke analysis for the `r fire_info$name` fire, planned for `r params$FIRE_DATE`. For more information, please contact `r params$AUTHOR`, Air Resource Specialist, `r air_spec_contact$number`, `r air_spec_contact$email`. 
 
 ## Recent Air Quality in Area 
 
-Shown below is the recently measured air quality index (AQI, [](https://airnow.gov/)) in the area. The map shows the location of the fire and the most recent daily AQI. The figure shows the daily AQI for the previous 3 days.
+Shown below is the recently measured air quality index (AQI, [https://airnow.gov/](https://airnow.gov/)) in the area. The map shows the location of the fire and the most recent daily AQI. The figure shows the daily AQI for the previous 3 days.
 
 ```{r fire_map_aqi, include = TRUE, echo = FALSE, message = FALSE}
 
@@ -187,16 +189,26 @@ Below are the BlueSky modeling outputs for day one and two after the burn is lit
 __Smoke conditions on day one of the modeling run: 24 average (top) and maximum (bottom)__
 ```{r bluesky_maps_day_one, echo = FALSE, out.width="70%", out.height="50%",fig.show='hold',fig.align='center'}
 
+file_path <- ifelse(params$MODEL_RUN == "day before", 
+                    "bluesky_day_before/",
+                    "bluesky/")
+
 # show bluesky output for day one
-include_graphics(c("bluesky/day_one_ave.jpg", "bluesky/day_one_max.jpg"))
+include_graphics(c(paste(file_path, "day_one_ave.jpg", sep = ""),
+                   paste(file_path, "day_one_max.jpg", sep = "")))
 
 ```
 
 __Smoke conditions on day two of the modeling run: 24 average (top) and maximum (bottom)__
-```{r bluesky_maps_day_two, echo = FALSE, caption = "caption", out.width="70%", out.height="50%",fig.show='hold',fig.align='center'}
+```{r bluesky_maps_day_two, echo = FALSE, out.width="70%", out.height="50%",fig.show='hold',fig.align='center'}
+
+file_path <- ifelse(params$MODEL_RUN == "day before", 
+                    "bluesky_day_before/",
+                    "bluesky/")
 
 # show bluesky output for day two
-include_graphics(c("bluesky/day_two_ave.jpg", "bluesky/day_two_max.jpg"))
+include_graphics(c(paste(file_path, "day_two_ave.jpg", sep = ""),
+                   paste(file_path, "day_two_max.jpg", sep = "")))
 
 ```
 
