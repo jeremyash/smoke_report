@@ -1,0 +1,328 @@
+---
+title: "Smoke Outlook for `r params$FIRE_NAME` Prescribed Fire"
+date: "Issued at `r Sys.time()`"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+geometry: margin=0.25in
+params: 
+  FIRE_NAME: ""
+  AUTHOR: ""
+  LON: ""
+  LAT: ""
+  MODEL_RUN: ""
+  FIRE_DATE: ""
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+## SPATIAL
+library(sp)
+library(rgeos)
+library(raster)
+library(rgdal)
+library(maptools)
+library(ggmap)
+library(sf)
+
+## DATA MANAGEMENT
+library(tidyverse)
+library(skimr)
+library(readxl)
+# library(zoo)
+
+## PLOTTING
+library(scales)
+library(units)
+library(viridis)
+library(extrafont)
+library(gtable)
+library(grid)
+library(ggimage)
+library(gridExtra)
+library(knitr)
+library(kableExtra)
+library(egg)
+library(tidycensus)
+library(ggrepel)
+
+## SMOKE DATA
+library(PWFSLSmoke)
+library(MazamaSpatialUtils)
+```
+
+
+```{r fire_info, include = FALSE}
+#############################################################################
+## pull monitors near fire
+#############################################################################
+
+##***************************************
+## ENTER FIRE INFORMATION HERE
+##***************************************
+
+fire_info <- tibble(lon = params$LON, 
+                    lat = params$LAT,
+                    name = params$FIRE_NAME)
+
+#------
+
+## Pull airnow data and reshapre for plotting
+
+# number of previous hours to pull monitoring data
+n_hrs <- 96
+
+# pull hourly data within 100 km of rx fire  and the last n_days hours
+airnow <- airnow_loadLatest() %>% 
+  monitor_subsetByDistance(fire_info$lon, fire_info$lat, radius = 100) 
+
+airnow$data <- airnow$data %>% 
+  slice(-(1:(n()-n_hrs)))
+
+
+# get number of monitors 
+n_mons <- length(unique(airnow$meta$monitorID))
+
+
+# calculate mean and prep data for plotting
+mon_dailyMean_list <- monitor_dailyStatistic(airnow, FUN = get("mean"), 
+                                        dayStart = "midnight", 
+                                        na.rm = TRUE, 
+                                        minHours = 18)
+
+mon_names <- mon_dailyMean_list[[1]]$siteName
+
+# calculate mean daily AQI for preceeding days
+mon_mean_df <- mon_dailyMean_list[[2]] 
+colnames(mon_mean_df)[2:(2+length(mon_names)-1)] <- mon_names
+mon_mean_df <- mon_mean_df %>% 
+  gather(mon_name, pm_val, -1) %>% 
+  mutate(aqi_col = aqiColors(pm_val),
+         aqi_cat = cut(pm_val, 
+                       breaks = AQI$breaks_24,
+                       labels = AQI$names))
+
+# calculate most recent 24hr average AQI
+rec_daily_df <- mon_mean_df %>% 
+  group_by(mon_name) %>% 
+  arrange(desc(datetime)) %>% 
+  slice(1) %>% 
+  ungroup() %>% 
+  rename(siteName = mon_name) %>% 
+  left_join(., airnow$meta, by = "siteName") 
+
+
+# read aqi table to include in final output
+aqi_tab <- read_csv("md_data/aqi_table.csv")
+
+# air specialist contact info
+air_spec_contact <- tibble(name = c("Jeremy Ash", "Ralph Perron", "Trent Wickman"),
+                           number = c("608-234-3300", "603-536-6228", "218-626-4372"),
+                           email = c("jeremy.ash@usda.gov", "ralph.perron@usda.gov", "trent.wickman@usda.gov")) %>% 
+  filter(name == params$AUTHOR)
+
+
+
+```
+
+
+
+
+This report documents the recent air quality, weather forecast and smoke analysis for the `r fire_info$name` prescribed fire, planned for `r params$FIRE_DATE`. For more information:  `r ifelse(params$AUTHOR == "Trent Wickman", "https://inciweb.nwcg.gov/", paste(params$AUTHOR, "Air Resource Specialist", air_spec_contact$number,  air_spec_contact$email, sep = ", "))`. 
+
+
+
+## Recent Air Quality in Area 
+
+Shown below is the recently measured air quality index (AQI) in the area. The map shows the location of the fire and the most recent daily AQI. The figure shows the daily AQI for the previous 3 days.
+
+```{r fire_map_aqi, include = TRUE, echo = FALSE, message = FALSE, warning = FALSE}
+
+# set up google API for ggmap ./md_data/
+api <- readLines("../google.api")
+register_google(key = api)
+
+# read in fire icon for mapping
+fire_icon <- tibble(x = fire_info$lon,
+                        y = fire_info$lat,
+                        image = "md_data/redFlame.png")
+
+##***************************************
+## PULLING FIRE MAP INFO: MAY NEED TO ADJUST ZOOM
+##***************************************
+
+# pull fire map from google
+fire_map_info <- get_map(location = c(fire_info$lon, fire_info$lat),
+                    maptype = "terrain",
+                    zoom = 8)
+
+# plot fire map
+fire_map <- ggmap(fire_map_info, extent = "device") +
+  geom_image(aes(x = x, y = y, image = image), data = fire_icon) +
+  geom_point(aes(x = longitude, y = latitude, color = aqi_cat), size = 3, show.legend = FALSE, data = rec_daily_df) +
+  geom_label_repel(aes(x = longitude, y = latitude, label=siteName), data = rec_daily_df) +
+  scale_color_manual(values = rec_daily_df$aqi_col)
+
+
+# recent AQI values at nearby monitors
+daily_aqi_plot <- ggplot(aes(x = datetime, y = pm_val, group = mon_name), data = mon_mean_df) +
+  geom_bar(aes(fill = aqi_cat), stat = "identity", show.legend = FALSE) +
+  scale_fill_manual(values = AQI$colors) +
+  facet_wrap(~mon_name, ncol = 1) +
+  labs(y = "AQI", x = NULL) +
+  theme_minimal()
+
+
+# aqi_table 
+aqi_kable <- aqi_tab %>%
+  mutate('Air Quality Index (AQI)' = cell_spec(c("Good", "Moderate", "USG", "Unhealthy", "Very Unhealthy", "Hazardous"), color = "black", bold = T, background = AQI$colors)) %>% 
+  kable(escape = FALSE, linesep = "") %>%
+  kable_styling(full_width = F, position = "left")
+
+
+# show the fire map and aqi side-by-side
+grid.arrange(fire_map, daily_aqi_plot, nrow = 1, widths = c(2:1))
+
+# show aqi color scheme and explanations
+aqi_kable
+
+```
+
+**Note**: Generally, smoke sensitive people are kids and older adults along with those who have cardiovascular or respiratory conditions. These groups should take appropriate precautions. See your health professional as needed. 
+
+Smoke and Health Information: [https://airnow.gov/](https://airnow.gov/)
+
+
+## Modeled Smoke Trajectories
+Below are the BlueSky modeling outputs for day one and two after the burn is lit. Each group of figures shows the predicted average smoke conditions (top panel) and maximum smoke conditions (bottom panel) for an individual day. The average smoke conditions are helpful for concerns related to public health. The maximum smoke conditions show the highest concentration at each point on the map for that day. This map is useful for identifying potential impacts to visibility on roadways or other areas.
+
+__Smoke conditions on day one of the modeling run: 24 average (top) and maximum (bottom)__
+```{r bluesky_maps_day_one_average, echo = FALSE, out.width="70%", out.height="50%",fig.show='hold',fig.align='center'}
+
+file_path <- ifelse(params$MODEL_RUN == "day before", 
+                    "bluesky_day_before/",
+                    "bluesky/")
+
+# show bluesky output for day one average
+include_graphics(paste(file_path, "day_one_ave.jpg", sep = ""))
+
+```
+
+
+  
+
+
+```{r bluesky_maps_day_one_max, echo = FALSE, out.width="70%", out.height="50%",fig.show='hold',fig.align='center'}
+
+# show bluesky output for day one max
+include_graphics(paste(file_path, "day_one_max.jpg", sep = ""))
+
+```
+
+__Smoke conditions on day two of the modeling run: 24 average (top) and maximum (bottom)__
+```{r bluesky_maps_day_two_average, echo = FALSE, out.width="70%", out.height="50%",fig.show='hold',fig.align='center'}
+
+# show bluesky output for day one average
+include_graphics(paste(file_path, "day_two_ave.jpg", sep = ""))
+
+```
+
+
+  
+
+
+```{r bluesky_maps_day_two_max, echo = FALSE, out.width="70%", out.height="50%",fig.show='hold',fig.align='center'}
+
+# show bluesky output for day one max
+include_graphics(paste(file_path, "day_two_max.jpg", sep = ""))
+
+```
+
+
+
+## Meterological Conditions  
+
+```{r firepoker_link, echo = FALSE, include = FALSE }
+
+## Generate firepoker link
+
+# get fire location
+fire_loc <- fire_info %>% 
+  dplyr::select(-name)
+
+# specify coordinates
+coordinates(fire_loc) <- c("lon", "lat")
+proj4string(fire_loc) <- CRS("+init=epsg:4326")
+
+# transform to bbox CRS
+fire_loc_3857 <- spTransform(fire_loc, CRS("+init=epsg:3857"))@coords
+
+# bbox data: xmin, ymin, xmax, ymax
+bbox_ctds <- c(fire_loc_3857[1] + -1016307,
+               fire_loc_3857[2] - 489197,
+               fire_loc_3857[1] - -1016307,
+               fire_loc_3857[2] + 489197)
+
+
+
+# read in dispersion breakpoints and id the state where fire is happening
+disp_brkpts_df <- read_excel("md_data/disp_breakpoints.xlsx")
+states <- st_read("md_data/states")
+fire_info_sf <- st_as_sfc(fire_loc)
+state_sf <- st_transform(states, crs = st_crs(fire_info_sf))
+fire_state <- as.character(states$STATE_ABBR[st_intersects(fire_info_sf, state_sf)[[1]]])
+
+
+disp_brkpts <- disp_brkpts_df %>% 
+  filter(state == fire_state) 
+
+
+# create firepoker link
+fp_url <- paste("https://www.weather.gov/dlh/firepoker?lat=",
+                round(fire_info$lat, 3),
+                "&lon=",
+                round(fire_info$lon, 3),
+                "&clat=",
+                round(fire_info$lat, 3),
+                "&clon=",
+                round(fire_info$lon, 3),
+                "&zoom=6&bbox=[",
+                round(bbox_ctds[1], 3),
+                ",",
+                round(bbox_ctds[2], 3),
+                ",",
+                round(bbox_ctds[3], 3),
+                ",",
+                round(bbox_ctds[4], 3),
+                "]&layers=FFFTTTTFFFT&fwf=F&dispersion=",
+                paste(0, 
+                      disp_brkpts[2], 
+                      disp_brkpts[3],
+                      disp_brkpts[4],
+                      disp_brkpts[5],
+                      sep = ","),
+                sep = "")
+```
+
+The predicted weather data, including fire behavior and smoke parameters, for the area are shown below. They can also be found [here](`r fp_url`). 
+
+```{r met_data, echo=FALSE, out.width="100%", out.height="100%",fig.show='hold',fig.align='center'}
+# include screeshot of firepoker website
+include_graphics("md_data/DLH Fire Poker.PNG")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
