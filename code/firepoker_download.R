@@ -41,8 +41,8 @@ fp_url <- paste("https://www.weather.gov/dlh/firepoker?lat=",
                 
 #Multiple Selector Based Screenshots
 webshot("https://www.weather.gov/dlh/firepoker",
-        file = "figures/test_map.png",
-        selector = "#map")
+        delay = 120,
+        file = "figures/test_map.png")
 
 
 library(RSelenium)

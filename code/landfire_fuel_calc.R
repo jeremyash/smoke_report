@@ -144,6 +144,35 @@ russ_fuels <- landfire %>%
 
 
 
+# Shawnee: Atwood Ridge 3-22-2019
+atw_fuel_wts <- tibble(type = c("TL6", "TL2", "GR1"),
+                        wts = c(0.92, 0.03, 0.05))
+
+atw_fuels <- landfire %>%
+  filter(type %in% atw_fuel_wts$type) %>% 
+  select(type:live_woody, fuel_bed_depth_ft) %>% 
+  gather(var, val, hr_1:fuel_bed_depth_ft) %>% 
+  left_join(., atw_fuel_wts, by = "type") %>% 
+  group_by(var) %>% 
+  summarise(wt_mean = weighted.mean(val, wts)) %>% 
+  ungroup()
+
+
+
+
+
+# Midewin: Track208 3-23-2019
+tr208_fuel_wts <- tibble(type = c("GR8", "GR3"),
+                       wts = c(0.90, 0.10))
+
+tr208_fuels <- landfire %>%
+  filter(type %in% tr208_fuel_wts$type) %>% 
+  select(type:live_woody, fuel_bed_depth_ft) %>% 
+  gather(var, val, hr_1:fuel_bed_depth_ft) %>% 
+  left_join(., tr208_fuel_wts, by = "type") %>% 
+  group_by(var) %>% 
+  summarise(wt_mean = weighted.mean(val, wts)) %>% 
+  ungroup()
 
 
 
@@ -151,18 +180,82 @@ russ_fuels <- landfire %>%
 
 
 
+# Shawnee: Fink Sandstone 3-27-2019
+sand_fuel_wts <- tibble(type = c("TL6", "TL3", "TL2"),
+                       wts = c(0.75, 0.20, 0.05))
+
+sand_fuels <- landfire %>%
+  filter(type %in% sand_fuel_wts$type) %>% 
+  select(type:live_woody, fuel_bed_depth_ft) %>% 
+  gather(var, val, hr_1:fuel_bed_depth_ft) %>% 
+  left_join(., sand_fuel_wts, by = "type") %>% 
+  group_by(var) %>% 
+  summarise(wt_mean = weighted.mean(val, wts)) %>% 
+  ungroup()
+
+
+
+# Shawnee: Fink Sandstone 3-27-2019
+whoop_fuel_wts <- tibble(type = c("TL6", "TL3", "TL2", "GR1"),
+                        wts = c(0.51, 0.27, 0.20, 0.02))
+
+whoop_fuels <- landfire %>%
+  filter(type %in% whoop_fuel_wts$type) %>% 
+  select(type:live_woody, fuel_bed_depth_ft) %>% 
+  gather(var, val, hr_1:fuel_bed_depth_ft) %>% 
+  left_join(., whoop_fuel_wts, by = "type") %>% 
+  group_by(var) %>% 
+  summarise(wt_mean = weighted.mean(val, wts)) %>% 
+  ungroup()
 
 
 
 
 
+# Shawnee: Harris Branch 3-28-2019
+harris_fuel_wts <- tibble(type = c("TL3", "TL6", "SB1"),
+                        wts = c(0.28, 0.44, 0.32))
+
+harris_fuels <- landfire %>%
+  filter(type %in% harris_fuel_wts$type) %>% 
+  select(type:live_woody, fuel_bed_depth_ft) %>% 
+  gather(var, val, hr_1:fuel_bed_depth_ft) %>% 
+  left_join(., harris_fuel_wts, by = "type") %>% 
+  group_by(var) %>% 
+  summarise(wt_mean = weighted.mean(val, wts)) %>% 
+  ungroup()
 
 
 
 
+# Shawnee: Copperous Branch 3-28-2019
+cop_fuel_wts <- tibble(type = c("TL6", "TL3", "TL2"),
+                          wts = c(0.5, 0.4, 0.1))
+
+cop_fuels <- landfire %>%
+  filter(type %in% cop_fuel_wts$type) %>% 
+  select(type:live_woody, fuel_bed_depth_ft) %>% 
+  gather(var, val, hr_1:fuel_bed_depth_ft) %>% 
+  left_join(., cop_fuel_wts, by = "type") %>% 
+  group_by(var) %>% 
+  summarise(wt_mean = weighted.mean(val, wts)) %>% 
+  ungroup()
 
 
 
+
+# Shawnee: IL
+il_fuel_wts <- tibble(type = c("TL6", "TL3", "TL2", "GR5", "GR3"),
+                       wts = c(0.66, 0.18, 0.05, 0.07, 0.04))
+
+il_fuels <- landfire %>%
+  filter(type %in% il_fuel_wts$type) %>% 
+  select(type:live_woody, fuel_bed_depth_ft) %>% 
+  gather(var, val, hr_1:fuel_bed_depth_ft) %>% 
+  left_join(., il_fuel_wts, by = "type") %>% 
+  group_by(var) %>% 
+  summarise(wt_mean = weighted.mean(val, wts)) %>% 
+  ungroup()
 
 
 
