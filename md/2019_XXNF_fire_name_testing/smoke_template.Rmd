@@ -8,7 +8,7 @@ output:
 geometry: margin=0.25in
 params: 
   FIRE_NAME: ""
-  AUTHOR: ""
+  CONTACT_INFO: ""
   LON: ""
   LAT: ""
   MODEL_RUN: ""
@@ -117,19 +117,19 @@ rec_daily_df <- mon_mean_df %>%
 aqi_tab <- read_csv("md_data/aqi_table.csv")
 
 # air specialist contact info
-air_spec_contact <- tibble(name = c("Jeremy Ash", "Ralph Perron", "Trent Wickman"),
-                           number = c("608-234-3300", "603-536-6228", "218-626-4372"),
-                           email = c("jeremy.ash@usda.gov", "ralph.perron@usda.gov", "trent.wickman@usda.gov")) %>% 
-  filter(name == params$AUTHOR)
+# air_spec_contact <- tibble(name = c("Jeremy Ash", "Ralph Perron", "Trent Wickman"),
+#                            number = c("608-234-3300", "603-536-6228", "218-626-4372"),
+#                            email = c("jeremy.ash@usda.gov", "ralph.perron@usda.gov", "trent.wickman@usda.gov")) %>% 
+#   filter(name == params$AUTHOR)
 
-
+# air_spec_contact <- params$AUTHOR
 
 ```
 
 
 
 
-This report documents the recent air quality, weather forecast and smoke analysis for the `r fire_info$name` prescribed fire, planned for `r params$FIRE_DATE`. For more information:  `r ifelse(params$AUTHOR == "Trent Wickman", "https://inciweb.nwcg.gov/", paste(params$AUTHOR, "Air Resource Specialist", air_spec_contact$number,  air_spec_contact$email, sep = ", "))`. 
+This report documents the recent air quality, weather forecast and smoke analysis for the `r fire_info$name` prescribed fire, planned for `r params$FIRE_DATE`. For more information: `r params$CONTACT_INFO`. 
 
 
 
@@ -189,9 +189,9 @@ aqi_kable
 
 ```
 
-**Note**: Generally, smoke sensitive people are kids and older adults along with those who have cardiovascular or respiratory conditions. These groups should take appropriate precautions. See your health professional as needed. 
+**Note**: Generally, smoke sensitive people are kids and older adults along with those who have cardiovascular or respiratory conditions.
 
-Smoke and Health Information: [https://airnow.gov/](https://airnow.gov/)
+For more smoke and health information: [https://airnow.gov/](https://airnow.gov/)
 
 
 ## Modeled Smoke Trajectories
