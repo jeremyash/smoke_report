@@ -26,7 +26,10 @@ library(grid)
 ## GENERATE FIREPOKER LINK FOR FIRE
 #############################################################################
 
-fp_url <- function(LON, LAT) {
+
+
+
+fp_url <- function(LAT, LON) {
 
   # fire location
   fire_loc <- tibble(lon = LON, 
@@ -40,10 +43,10 @@ fp_url <- function(LON, LAT) {
   fire_loc_3857 <- spTransform(fire_loc, CRS("+init=epsg:3857"))@coords
   
   # bbox data: xmin, ymin, xmax, ymax
-  bbox_ctds <- c(fire_loc_3857[1] + -1016307,
-                 fire_loc_3857[2] - 489197,
-                 fire_loc_3857[1] - -1016307,
-                 fire_loc_3857[2] + 489197)
+  # bbox_ctds <- c(fire_loc_3857[1] + -1016307,
+  #                fire_loc_3857[2] - 489197,
+  #                fire_loc_3857[1] - -1016307,
+  #                fire_loc_3857[2] + 489197)
   
   
   
@@ -64,31 +67,19 @@ fp_url <- function(LON, LAT) {
                   round(fire_loc$lat, 3),
                   "&lon=",
                   round(fire_loc$lon, 3),
-                  "&clat=",
-                  round(fire_loc$lat, 3),
-                  "&clon=",
-                  round(fire_loc$lon, 3),
-                  "&zoom=6&bbox=[",
-                  round(bbox_ctds[1], 3),
-                  ",",
-                  round(bbox_ctds[2], 3),
-                  ",",
-                  round(bbox_ctds[3], 3),
-                  ",",
-                  round(bbox_ctds[4], 3),
-                  "]&layers=FFFTTTTFFFT&fwf=F&dispersion=",
+                  "&clat=38.967&clon=-97.267&zoom=7.000&bbox=[-16540299.098,2518065.675,-5115162.882,6915872.719]&layers=USStates|ForecastDot|Domain|SurfaceFronts|Radar|&fwf=F&dispersion=",
                   paste(0, 
                         disp_brkpts[2], 
                         disp_brkpts[3],
                         disp_brkpts[4],
                         disp_brkpts[5],
                         sep = ","),
+                  "&ndfd=WindGust&nohelp=t#",
                   sep = "")
   
   # print(fp_url)
   browseURL(fp_url, browser = "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
             encodeIfNeeded = FALSE)
-
 }
 
 
@@ -162,3 +153,38 @@ fp_url(-86.536, 38.053)
 
 # west celina
 fp_url(-86.632, 38.191)  
+
+
+fp_url(-85.599, 44.122)  
+
+
+# buskirk 2
+fp_url(-80.21188, 37.83622)
+
+
+# Mon-50 acre
+fp_url(-80.22866, 37.83276)
+
+# e greenbrier
+fp_url(-80.21186, 37.83648)
+
+# testing
+fp_url(-79.6520, 38.7860)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

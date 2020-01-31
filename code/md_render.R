@@ -1,72 +1,101 @@
 #############################################################################
-## RUN THIS SECTION OF CODE FIRST TO DEVELOP FUNCTION THAT WILL GENERATE SMOKE REPORT
+## FOLLOW NUMBERED STEPS BELOW TO CREATE THE SMOKE OUTLOOK
 #############################################################################
 
-render_smoke_report <- function(md_path, fire_name, contact_info, fire_date, lat, lon, model_run){
-        # libraries needed
-        require(rmarkdown)
-        require(tidyverse)
-        require(lubridate)
-        
-        # intermediate file names
-        smoke_report_title <- str_replace_all(paste(fire_name, model_run), " ", "_")
-        yearmonday <- str_replace_all(Sys.Date(), "-", "")
-        
-        
-        # create html output
-        render(input = paste("md/", md_path, "/smoke_template.Rmd", sep = ""),
-               output_dir = paste("md/", md_path, "/smoke_reports", sep = ""),
-               output_file = paste(yearmonday,
-                                   "_",
-                                   smoke_report_title, ".html", sep = ""), 
-               params = list(FIRE_NAME = fire_name,
-                             CONTACT_INFO = contact_info,
-                             FIRE_DATE = fire_date,
-                             LAT = lat,
-                             LON = lon,
-                             MODEL_RUN = model_run)) 
-}
+##-------------
+## 1. SOURCE R CODE WITH FUNCTIONS TO GENERATE DIRECTORY, FIREPOKER LINK AND SMOKE REPORT
+##-------------
 
-#############################################################################
-## APPLY ABOVE FUNCTION TO BURN INFO
-#############################################################################
-
-
-# render smoke template for given fire
-render_smoke_report(md_path = "2019_XXNF_fire_name_testing", # update with path for burn
-                    fire_name = "TEST", # name of fire
-                    contact_info = "Trent Wickman, t...@usda.gov, XXX-XXXX", # full contact info or website
-                    fire_date = "April x, 2019", # planned date
-                    lat = 43,
-                    lon = -90.632,
-                    model_run = "day of") # needs to be "day of" or "day before"
+source("code/render_smoke_report_functions.R")
 
 
 
-#############################################################################
-## APRIL 15
-#############################################################################
+##-------------
+## 2. LIST NAME OF FOLDER WHERE BURN INFO WILL BE STORED, WHICH MODEL RUN THIS IS AND BURN COORDINATES
+##-------------
+
+# create directory of burn files in format "YYYY_forest_burnname"
+burn_dir <- "YYYY_forest_burnname"
 
 
-# hoosier jeffries
-render_smoke_report(md_path = "2019_hoosier_jeffries", # update with path for burn
-                    fire_name = "Jeffries Tract", # name of fire
-                    contact_info = "Jeremy Ash, jeremy.ash@usda.gov, 608-234-3300", # full contact info or website
-                    fire_date = "April 16, 2019", # planned date
-                    lat = 38.173467,
-                    lon = -86.480140,
-                    model_run = "day of") # needs to be "day of" or "day before"
+# model run: # needs to be "day_before" or "day_of" 
+model_run <- "day_before"
+
+# burn lat/long
+burn_lat <- 38.7860
+burn_lon <- -79.6520
 
 
 
-# hoosier riddle
-render_smoke_report(md_path = "2019_hoosier_riddle_copy", # update with path for burn
-                    fire_name = "Riddle Tract", # name of fire
-                    contact_info = "Jeremy Ash, jeremy.ash@usda.gov, 608-234-3300", # full contact info or website
-                    fire_date = "April 16, 2019", # planned date
-                    lat = 38.159302,
-                    lon = -86.439198,
-                    model_run = "day of") # needs to be "day of" or "day before"
+##-------------
+## 3. CREATE DIRECTORY TO STORE FILES
+##-------------
+
+# create directory for burn
+create_md_dir(burn_dir)
+
+
+
+##-------------
+## 4. CREATE FIREPOKER LINK TO DOWNLOAD PNG OF WEBPAGE
+##-------------
+
+fp_url(LAT = burn_lat,
+       LON = burn_lon) # coordinates of planned burn
+
+
+
+##-------------
+## 5. DOWNLOAD SCREEN CAPTURE OF FIREPOKER
+##-------------
+
+# Use Full Page Screen Capture in Chrome to capture met data and download to PNG file. Should download directly to Downloads folder. Move directly to step 6, as it will look for most recently downloaded file. 
+
+
+
+##-------------
+## 6. MOVE FIREPOKER IMAGE TO CORRECT FOLDER
+##-------------
+
+# function will move most recently downloaded file (assuming this is the firepoker img) to burn_dir/model_run and rename it to firepoker.PNG
+fp_png_to_burn_dir_fun(burn_dir, model_run)
+
+
+
+##-------------
+## 5. CREATE SMOKE OUTLOOK
+##-------------
+
+# render smoke template for given burn
+suppressWarnings( 
+  render_smoke_report(md_path = burn_dir, # update with directory created above
+                      burn_name = "Test", # name of fire
+                      contact_info = "Jeremy Ash, jeremy.ash@usda.gov, 608-234-3300", # full contact info or website
+                      burn_date = "January 31, 2020", # planned date
+                      lat = burn_lat, # latitude of planned ignition
+                      lon = burn_lon, # longitude of planned ignition
+                      model_run = model_run, # created above 
+                      run_id = "15e2aec893afb9", # the Run ID on top left of BSky Dispersion Results
+                      mon_radius = 50 # radius in km around the burn to pull AQI monitors. start with 50 and increase if needed 
+  ))
+#----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
